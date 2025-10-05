@@ -102,18 +102,6 @@ Assignment_2/
 - External libraries are loaded via CDN
 - No build process or additional installation required
 
-### LLM Usage Declaration
-[Please declare if you've used any LLM for this assignment and provide details]
-
-### Grading Rubric
-- Code Quality: 20%
-- Functionality: 50%
-- UI/UX: 20%
-- Documentation: 10%
-
-### Submission
-- Submission file: `2025202035_A2.zip`
-- Due: September 27, 2025, 05:00 PM
 
 ---
-*This README was last updated on October 5, 2025*
+Github link repo- https://github.com/rohitrohon/SSD_Assignment2
