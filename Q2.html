@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS6.302 SSD Monsoon 2025 - Interactive Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --secondary: #ec4899;
+            --accent: #38bdf8;
+            --dark-bg: #111827;
+            --text-light: #e5e7eb;
+            --text-dark: #9ca3af;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --spotlight-color: rgba(245, 158, 11, 0.15);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-light);
+            line-height: 1.7;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .aurora-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        
+        .aurora-shape {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.4;
+            transition: transform 0.5s linear;
+        }
+        
+        .shape1 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--primary), transparent 60%);
+            top: -150px;
+            left: -150px;
+            animation: move-aurora 20s infinite alternate ease-in-out;
+        }
+
+        .shape2 {
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--secondary), transparent 60%);
+            bottom: -200px;
+            right: -200px;
+            animation: move-aurora 25s infinite alternate ease-in-out;
+            animation-delay: -5s;
+        }
+
+        @keyframes move-aurora {
+            from { transform: scale(1) rotate(0deg); }
+            to { transform: scale(1.2) rotate(45deg); }
+        }
+
+        .navbar {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            animation: slideDown 0.7s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+
+        .nav-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-light);
+        }
+
+        .nav-links a {
+            color: var(--text-dark);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background: var(--primary);
+            color: white;
+            text-shadow: 0 0 10px white;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 4rem 2rem;
+            border-radius: 20px;
+            margin-bottom: 2rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero h3 {
+            color: var(--text-dark);
+            font-weight: 400;
+        }
+        
+        .hero .time-display {
+            margin-top: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+            text-shadow: 0 0 10px var(--accent);
+        }
+        
+        .card {
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(15px);
+            border-radius: 16px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            opacity: 0;
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+            transform: translateY(30px);
+        }
+
+        .card.in-view {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .card h2 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            text-shadow: 0 0 10px var(--primary);
+        }
+        
+        .card h3 {
+            color: var(--secondary);
+            margin: 1.5rem 0 1rem;
+        }
+        
+        .spotlight {
+            position: relative;
+            border-radius: 8px; 
+            overflow: hidden;
+            background: radial-gradient(
+                200px circle at var(--x, -200px) var(--y, -200px),
+                var(--spotlight-color),
+                transparent 40%
+            );
+            transition: background 0.1s ease-out;
+        }
+
+        .table-container { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border-color); }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: rgba(139, 92, 246, 0.2); }
+        th { padding: 1rem; text-align: left; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        td { padding: 1rem; border-top: 1px solid var(--border-color); }
+        tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+        tbody tr.light-text-row { color: var(--text-dark); font-style: italic; }
+        a { color: var(--accent); text-decoration: none; font-weight: 500; transition: all 0.2s; }
+        a:hover { color: var(--primary); text-shadow: 0 0 10px var(--primary); }
+        .info-box, .warning-box { padding: 1.5rem; border-radius: 8px; margin: 1rem 0; background: var(--glass-bg); }
+        .info-box { border-left: 4px solid var(--accent); }
+        .warning-box { border-left: 4px solid #f59e0b; }
+        ul { list-style: none; padding-left: 0; }
+        li { padding-left: 1.5rem; position: relative; margin: 0.5rem 0; }
+        li::before { content: '✦'; color: var(--primary); position: absolute; left: 0; top: 0; }
+        .staff-card { background: rgba(255, 255, 255, 0.03); padding: 1.5rem; border-radius: 12px; }
+        .staff-card h4 { color: var(--secondary); margin-bottom: 0.5rem; }
+        .footer { text-align: center; padding: 2rem 1rem; color: var(--text-dark); }
+        .scroll-top { position: fixed; bottom: 2rem; right: 2rem; background: var(--primary); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 20px var(--primary); transition: all 0.3s; opacity: 0; pointer-events: none; z-index: 1001; }
+        .scroll-top.visible { opacity: 1; pointer-events: all; }
+        code { background: var(--glass-bg); border: 1px solid var(--border-color); padding: 0.2rem 0.4rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; color: var(--accent); }
+        s { color: var(--danger); text-decoration-thickness: 2px;}
+    </style>
+</head>
+<body>
+    <div class="aurora-background">
+        <div class="aurora-shape shape1"></div>
+        <div class="aurora-shape shape2"></div>
+    </div>
+
+    <nav class="navbar">
+        <div class="nav-content">
+            <div class="nav-title">CS6.302 :: SSD</div>
+            <div class="nav-links">
+                <a href="#about">About</a>
+                <a href="#lecture">Schedule</a>
+                <a href="#cpolicy">Policy</a>
+                <a href="#schedule">Lectures</a>
+                <a href="#lab">Labs</a>
+                <a href="#activity">Exams</a>
+                <a href="#staff">Staff</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="hero">
+            <h1>CS6.302 - Software System Development</h1>
+            <h3>Software Engineering Research Center, IIIT Hyderabad</h3>
+            <h3>Monsoon 2025</h3>
+            <div class="time-display" id="txt"></div>
+        </div>
+
+        <div class="card" id="about"><h2>📚 About the Course</h2></div>
+        <div class="card" id="lecture"><h2>🕐 Lecture/Lab Hours</h2></div>
+        <div class="card" id="cpolicy"><h2>📋 Course Policy</h2></div>
+        <div class="card" id="schedule"><h2>📅 Lecture Schedule</h2><div class="table-container"></div></div>
+        <div class="card" id="lab"><h2>🔬 Lab Schedule</h2><div class="table-container"></div></div>
+        <div class="card" id="activity"><h2>📝 Exams & Assignments</h2><div class="table-container"></div></div>
+        <div class="card" id="staff"><h2>👥 Course Staff</h2></div>
+
+        <footer class="footer">
+            <p>Software Engineering Research Center, IIIT Hyderabad</p>
+        </footer>
+    </div>
+
+    <div class="scroll-top" id="scrollTop" onclick="scrollToTop()">↑</div>
+
+    <script>
+        // --- COMPLETE COURSE DATA ---
+        const courseData = {
+            about: `<p class="spotlight">Software System Development is a graduate-level course that equips students with a comprehensive understanding of the principles, tools, and practices involved in designing and building modern software systems. Emphasizing a systems-oriented perspective, the course explores foundational and contemporary topics including Operating Systems, Computer Networks, Software Engineering methodologies, and Database Systems (both relational and NoSQL).</p>`,
+            lectureHours: `<ul class="spotlight"><li><strong>🏛️ Lecture:</strong> 8:30 AM to 9:55 AM - Tuesdays and Fridays - Hall: H-205</li><li><strong>💻 Lab/Tutorial:</strong> 2:00 PM to 5:00 PM - Fridays - Lab: SH-1</li></ul><h3>Office Hours</h3><p class="spotlight">The instructor is available for 15 minutes before every class. You can also email at <code>saianirudh.karre[at]iiit.ac.in</code>.</p>`,
+            coursePolicy: `<h3>Academic Honesty</h3><div class="warning-box spotlight"><p><strong>Help to learn, not to cheat.</strong> Plagiarism will result in a "0" for the task and may lead to an "F" grade for the course.</p></div><h3>General Policies</h3><ul class="spotlight"><li><strong>Absentee Policy:</strong> Attendance is expected. Missed graded activities will receive a '0' with no make-ups.</li><li><strong>AI Tools:</strong> Permitted, but must be cited in your report. You are responsible for the correctness of AI-generated content.</li><li><strong>Deadlines:</strong> Strictly enforced. There will be **no extensions**.</li></ul><h3>Grading Distribution</h3><div class="table-container"><table><thead><tr><th>Deliverable</th><th>Weightage</th></tr></thead><tbody><tr><td>Assignments (4)</td><td>15%</td></tr><tr><td>Lab Activities (14)</td><td>15%</td></tr><tr><td>Class Activities (5)</td><td>10%</td></tr><tr><td>Quizzes (2)</td><td>10%</td></tr><tr><td>Mid-Term Hackathon</td><td>10%</td></tr><tr><td>Final Project</td><td>40%</td></tr></tbody></table></div>`,
+            staff: `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;"><div class="staff-card spotlight"><h4>Instructors</h4><p><a href="https://sites.google.com/view/abhishek-singh/home" target="_blank">Dr. Abhishek Singh</a><br><a href="https://sai11101989.github.io" target="_blank">Dr. Sai Anirudh Karre</a></p></div><div class="staff-card spotlight"><h4>Teaching Assistants</h4><p>Chirag Dhamija, Tejas Cavale, Divyansh Pandey, Aaditya Vardhan Narain, Kunal Kamalkishire Bhosikar, Chandrasekar S, Ashwani Raj, Hiya Bhatt</p></div></div>`,
+            lectures: [
+                { no: 1, date: "01-Aug-25 (Friday)", content: "Course Intro - Software Systems", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/SSD_Monsoon2025.pdf", Notes: "https://tinted-rumba-8c6.notion.site/Software-System-2456a6248bf68034bc14cfc44dc93062" }, past: true },
+                { no: 2, date: "05-Aug-25 (Tuesday)", content: "Relational Data", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/data.pdf", Notes: "https://tinted-rumba-8c6.notion.site/Structured-Databases-2456a6248bf6805f83e1cbf0a58761ec" }, past: true },
+                { no: 3, date: "08-Aug-25 (Friday)", content: "Unstructured Data - Session 1", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/NoSQLClass.pdf", Notes: "https://tinted-rumba-8c6.notion.site/Unstructured-Databases-24b6a6248bf680679b36e76c33d301c4" }, past: true },
+                { no: 4, date: "12-Aug-25 (Tuesday)", content: "<s>Unstructured Data - Session 2</s> <br> [Cancelled - Rain ⛈️]", materials: {}, past: true },
+                { no: 5, date: "19-Aug-25 (Tuesday)", content: "Unstructured Data - Session 2", materials: { Practice: "https://tinted-rumba-8c6.notion.site/Worked-out-Examples-2546a6248bf68073a460cbfc52825dfd" }, past: true },
+                { no: 6, date: "22-Aug-25 (Friday)", content: "Web - HTML", materials: { "HTML-Slides": "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/HTML.pdf", Notes: "https://tinted-rumba-8c6.notion.site/Web-Technology-2566a6248bf6800488d0c13a992502e4?pvs=143" }, past: true },
+                { no: 7, date: "26-Aug-25 (Tuesday)", content: "Web - CSS", materials: { Notes: "https://tinted-rumba-8c6.notion.site/CSS-2566a6248bf680dc8299c320f04a5141?pvs=74", Scripts: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/css_super_demo_single_file_html.html" }, past: true },
+                { no: 8, date: "29-Aug-25 (Friday)", content: "JavaScript - Session 1", materials: { Scripts: "https://github.com/sai11101989/sai11101989.github.io/tree/main/Course/SSD_Monsoon2025/JS1", Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/ISS_Spring_2025/6_Class6_JavaScript.pdf" }, past: true },
+                { no: 9, date: "02-Sep-25 (Tuesday)", content: "JavaScript Session 2", materials: { Scripts: "https://github.com/sai11101989/sai11101989.github.io/tree/main/Course/SSD_Monsoon2025/JS2", Notes: "https://tinted-rumba-8c6.notion.site/JavaScript-2606a6248bf680138283f6419bd87777" }, past: true },
+                { no: 10, date: "04-Sep-25 (Thursday)", content: "<s>JavaScript Session 3</s> <br> [Cancelled - Instructor Sick 🤒]", materials: {}, past: true },
+                { no: 11, date: "09-Sep-25 (Tuesday)", content: "JavaScript Session 3", materials: { Notes: "https://tinted-rumba-8c6.notion.site/Data-Structures-2686a6248bf680098b38d12626ad1012?pvs=74", Scripts: "https://github.com/sai11101989/sai11101989.github.io/tree/main/Course/SSD_Monsoon2025/JS3" }, past: true },
+                { no: 12, date: "12-Sep-25 (Friday)", content: "React JS", materials: { Slide: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/ReactJS_2025.pdf", Notes: "https://www.notion.so/Asynchronous-JavaScript-26b6a6248bf68016971dd3bde3b89015" }, past: true },
+                { no: 13, date: "26-Sep-25 (Friday)", content: "SE Practices", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/SEPractices.pdf" }, past: true },
+                { no: 14, date: "26-Sep-25 (Friday)", content: "System Design", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/SystemDesign.pdf" }, past: true },
+                { no: 15, date: "30-Sep-25 (Tuesday)", content: "Python Session 1", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Python_Session1.pdf" }, past: true },
+                { no: 16, date: "03-Oct-25 (Friday)", content: "Python Session 2", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Python_Session2.pdf", Scripts: "https://github.com/sai11101989/sai11101989.github.io/blob/main/Course/SSD_Monsoon2025/Lec%202.ipynb" }, past: true },
+                { no: 17, date: "07-Oct-25 (Tuesday)", content: "Python - Session 3", materials: {} },
+                { no: 18, date: "10-Oct-25 (Friday)", content: "Python - Session 4", materials: {} },
+                { no: 19, date: "14-Oct-25 (Tuesday)", content: "Python - Session 5", materials: {} },
+                { no: 20, date: "17-Oct-25 (Friday)", content: "Python - Session 6", materials: {} },
+                { no: 21, date: "24-Oct-25 (Friday)", content: "Python - Session 7", materials: {} },
+                { no: 22, date: "28-Oct-25 (Tuesday)", content: "Python - Session 8", materials: {} },
+                { no: 23, date: "31-Oct-25 (Friday)", content: "Python - Session 9", materials: {} },
+                { no: 24, date: "07-Nov-25 (Friday)", content: "Python - Session 10", materials: {} },
+                { no: 25, date: "11-Nov-25 (Tuesday)", content: "SHELL Session 1", materials: {} },
+                { no: 26, date: "14-Nov-25 (Friday)", content: "SHELL Session 2", materials: {} },
+                { no: 27, date: "18-Nov-25 (Tuesday)", content: "Retrospection", materials: {} },
+            ],
+            labs: [
+                { no: 1, date: "07-Aug-25", topic: "Git Session", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Labs/Lab01/SSD%20Tutorial%20%20-%20GIT.pdf", Activity: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Labs/Lab01/SSD_GIT_LAB.pdf" }, past: true },
+                { no: 2, date: "14-Aug-25", topic: "SQL Session", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Labs/Lab01/Lab-2.pdf", Activity: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Labs/Lab01/Activity%20-%20Lab%202.pdf" }, past: true },
+                { no: 3, date: "21-Aug-25", topic: "NoSQL Session", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Labs/Lab01/NoSQL%20Lab3.pdf", Activity: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Labs/Lab01/Activity_lab3.pdf" }, past: true },
+                { no: 4, date: "28-Aug-25", topic: "DOM", materials: { "Slides & Activity": "https://github.com/sai11101989/sai11101989.github.io/tree/main/Course/SSD_Monsoon2025/DOM" }, past: true },
+                { no: 5, date: "04-Sep-25", topic: "JS Session", materials: { "Slides & Activity": "https://github.com/sai11101989/sai11101989.github.io/tree/main/Course/SSD_Monsoon2025/JSLab" }, past: true },
+                { no: 6, date: "18-Sep-25", topic: "Browser Events", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Browser%20DOM%20Events.pdf", Activity: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/SSD%20-%20Events%20Activity.pdf" }, past: true },
+                { no: 7, date: "16-Sep-25", topic: "MERN Session - NodeJS", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/MERN.pdf", "Boiler Code": "https://github.com/AadityaNarain2003/Mern_Lab_1_" }, past: true },
+                { no: 8, date: "19-Sep-25", topic: "MERN App - Session 2", materials: { "Boiler Code": "https://github.com/AadityaNarain2003/Mern_Lab_2_" }, past: true },
+                { no: 9, date: "20-Sep-25", topic: "MERN App - Session 3", materials: { Slides: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/MERN%20LAB%203%20-%20SLIDES.pdf", Activity: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/SSD_LAB___MERN.pdf" }, past: true },
+                { no: 10, date: "03-Oct-25", topic: "MID and Project Phase 1 Evaluation", materials: {}, past: true },
+                { no: 11, date: "09-Oct-25", topic: "Python Session 1", materials: {} },
+                { no: 12, date: "10-Oct-25", topic: "Python Session 2", materials: {} },
+                { no: 13, date: "17-Oct-25", topic: "Python Session 3", materials: {} },
+                { no: 14, date: "23-Oct-25", topic: "Python Session 4", materials: {} },
+                { no: 15, date: "24-Oct-25", topic: "Python Session 5", materials: {} },
+                { no: 16, date: "07-Nov-25", topic: "FASTAPI-Session", materials: {} },
+                { no: 17, date: "14-Nov-25", topic: "SHELL Session", materials: {} },
+            ],
+            exams: [
+                { type: "Assignment - SQL, NoSQL", due: "05-Sep-25", materials: { Paper: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Assignment_1.pdf" }, past: true },
+                { type: "Assignment - Web", due: "05-Oct-25", materials: { Paper: "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/Assignment_2.pdf" }, past: true },
+                { type: "Assignment - Python - Part 1", due: "20-Oct-25", materials: {} },
+                { type: "Assignment - Python - Part 2", due: "10-Nov-25", materials: {} },
+                { type: "SQL Practice", due: "10-Aug-25", materials: { Paper: "https://tinted-rumba-8c6.notion.site/Worked-out-Examples-2456a6248bf6800fa6cfc3e688a58ddd" }, past: true },
+                { type: "QUIZ 1", due: "29-Aug-25", materials: { "Paper & Key": "https://docs.google.com/viewer?url=https://raw.githubusercontent.com/sai11101989/sai11101989.github.io/main/Course/SSD_Monsoon2025/SSD_Quiz1_Key.pdf" }, past: true },
+                { type: "QUIZ 2", due: "31-Oct-25", materials: {} },
+                { type: "MID Exam", due: "28-Sep-25", materials: { Paper: "https://sai11101989.github.io/Course/SSD_Monsoon2025/MID.html" }, past: true },
+                { type: "Final Project", due: "02-Dec-25", materials: {} },
+                { type: "Class Activity - Profile Page", due: "26-Aug-25", materials: { Submission: "https://forms.office.com/r/6kpKVY0eqP" }, past: true },
+                { type: "Class Activity - JavaScript", due: "10-Oct-25", materials: {} },
+                { type: "Class Activity - Python", due: "14-Nov-25", materials: {} },
+            ]
+        };
+
+        // --- ALL FUNCTIONS ---
+
+        function createTable(containerId, headers, data, rowGenerator) {
+            const container = document.querySelector(`#${containerId} .table-container`);
+            const table = document.createElement('table');
+            table.innerHTML = `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${data.map(item => `<tr class="${item.past ? 'light-text-row' : ''}">${rowGenerator(item)}</tr>`).join('')}</tbody>`;
+            container.appendChild(table);
+        }
+
+        function generateMaterialLinks(materials) {
+            if (!materials || Object.keys(materials).length === 0) return '';
+            return Object.entries(materials).map(([key, value]) => 
+                `<a href="${value}" target="_blank">[${key}]</a>`
+            ).join(' ');
+        }
+
+        function startTime() {
+            const today = new Date();
+            const options = { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            document.getElementById('txt').innerHTML = today.toLocaleString('en-US', options);
+            setTimeout(startTime, 1000);
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function setupScrollAnimations() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('in-view');
+                    }
+                });
+            }, { threshold: 0.1 });
+            document.querySelectorAll('.card').forEach(card => observer.observe(card));
+        }
+
+        function setupNavbarHighlighting() {
+            const navLinks = document.querySelectorAll('.nav-links a');
+            const sections = document.querySelectorAll('.card[id]');
+            window.addEventListener('scroll', () => {
+                let currentId = '';
+                sections.forEach(section => {
+                    if (window.scrollY >= section.offsetTop - 150) {
+                        currentId = section.getAttribute('id');
+                    }
+                });
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').includes(currentId)) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        }
+        
+        function setupInteractiveAurora() {
+            const background = document.querySelector('.aurora-background');
+            window.addEventListener('mousemove', (e) => {
+                const { clientX, clientY } = e;
+                const x = (window.innerWidth / 2 - clientX) / 20;
+                const y = (window.innerHeight / 2 - clientY) / 20;
+                background.style.transform = `translate(${x}px, ${y}px)`;
+            });
+        }
+
+        function setupTextSpotlight() {
+            const spotlightElements = document.querySelectorAll('.spotlight');
+            spotlightElements.forEach(el => {
+                el.addEventListener('mousemove', (e) => {
+                    const rect = el.getBoundingClientRect();
+                    el.style.setProperty('--x', (e.clientX - rect.left) + 'px');
+                    el.style.setProperty('--y', (e.clientY - rect.top) + 'px');
+                });
+                el.addEventListener('mouseleave', () => {
+                    el.style.setProperty('--x', '-200px');
+                    el.style.setProperty('--y', '-200px');
+                });
+            });
+        }
+
+        // --- INITIALIZATION ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Populate content
+            document.querySelector('#about').innerHTML += courseData.about;
+            document.querySelector('#lecture').innerHTML += courseData.lectureHours;
+            document.querySelector('#cpolicy').innerHTML += courseData.coursePolicy;
+            document.querySelector('#staff').innerHTML += courseData.staff;
+            
+            createTable('schedule', ['No', 'Date', 'Content', 'Material'], courseData.lectures, item => `<td>${item.no}</td><td>${item.date}</td><td>${item.content}</td><td>${generateMaterialLinks(item.materials)}</td>`);
+            createTable('lab', ['No', 'Date', 'Topic', 'Material'], courseData.labs, item => `<td>${String(item.no).padStart(2, '0')}</td><td>${item.date}</td><td>${item.topic}</td><td>${generateMaterialLinks(item.materials)}</td>`);
+            createTable('activity', ['Type', 'Due', 'Material'], courseData.exams, item => `<td>${item.type}</td><td>${item.due}</td><td>${generateMaterialLinks(item.materials)}</td>`);
+            
+            // Activate interactive features
+            setupScrollAnimations();
+            setupNavbarHighlighting();
+            setupInteractiveAurora();
+            setupTextSpotlight();
+            startTime();
+
+            // Setup scroll-to-top button visibility
+            const scrollTopBtn = document.getElementById('scrollTop');
+            window.addEventListener('scroll', () => {
+                scrollTopBtn.classList.toggle('visible', window.pageYOffset > 300);
+            });
+        });
+    </script>
+</body>
+</html>
