@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Q7: A-Frame Bowling (Working Physics)</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; }
+        .ui-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            width: 90%;
+            max-width: 850px;
+        }
+        #scoreboard { width: 100%; border-collapse: collapse; text-align: center; }
+        #scoreboard th, #scoreboard td { border: 1px solid #666; padding: 5px; }
+        #scoreboard .frame-header { background-color: #444; }
+        #scoreboard .frame-total { font-weight: bold; font-size: 1.2em; padding-top: 8px;}
+        .controls { 
+            position: fixed; 
+            bottom: 20px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            z-index: 10; 
+        }
+        .controls button {
+            padding: 12px 25px;
+            font-size: 18px;
+            margin: 0 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            color: white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        #start-game-button { background-color: #4CAF50; }
+        #restart-game-button { background-color: #f44336; }
+        .message-display {
+             position: fixed;
+             top: 50%;
+             left: 50%;
+             transform: translate(-50%, -50%);
+             background-color: rgba(255, 215, 0, 0.95);
+             color: black;
+             padding: 20px 40px;
+             border-radius: 15px;
+             font-size: 3.5em;
+             font-weight: bold;
+             display: none;
+             z-index: 20;
+             text-align: center;
+        }
+        .hidden { display: none; }
+        #drag-indicator {
+            position: fixed;
+            bottom: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #FFD700;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            border: 2px solid #FFD700;
+            z-index: 15;
+        }
+        #drag-visual {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 215, 0, 0.3);
+            color: #FFD700;
+            padding: 30px;
+            border: 3px dashed #FFD700;
+            border-radius: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            display: none;
+            z-index: 19;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <a-scene physics="gravity: 0 -9.8 0">
+        <a-assets>
+            <img id="wood-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg" crossorigin="anonymous">
+        </a-assets>
+
+        <a-light type="ambient" color="#BBB"></a-light>
+        <a-light type="directional" position="-5 10 5" intensity="0.8"></a-light>
+
+        <a-sky color="#87CEEB"></a-sky> 
+
+        <!-- Floor -->
+        <a-plane position="0 0 -10" rotation="-90 0 0" width="30" height="30" 
+                 static-body material="src: #wood-texture; repeat: 10 10; color: #7CFC00"></a-plane>
+
+        <!-- Lane -->
+        <a-box id="lane" position="0 0.1 -10" depth="20" width="1.06" height="0.2" 
+               material="color: #F5DEB3" static-body></a-box>
+        
+        <!-- Gutters -->
+        <a-box id="gutter-left" position="-0.8 0.05 -10" depth="20" width="0.5" height="0.1" 
+               color="#222" static-body></a-box>
+        <a-box id="gutter-right" position="0.8 0.05 -10" depth="20" width="0.5" height="0.1" 
+               color="#222" static-body></a-box>
+        
+        <!-- Back wall to stop pins -->
+        <a-box position="0 1 -18.5" width="3" height="2" depth="0.3" 
+               color="#654321" static-body></a-box>
+        
+        <!-- Side walls to prevent pins from flying off -->
+        <a-box position="-1.3 0.5 -10" width="0.2" height="1" depth="20" 
+               color="#654321" static-body visible="false"></a-box>
+        <a-box position="1.3 0.5 -10" width="0.2" height="1" depth="20" 
+               color="#654321" static-body visible="false"></a-box>
+        
+        <!-- Catch floor for falling pins -->
+        <a-box position="0 -0.5 -10" width="5" height="0.2" depth="25" 
+               static-body visible="false"></a-box>
+        
+        <!-- Foul line -->
+        <a-box id="foul-line" position="0 0.21 -1.5" height="0.02" width="2" depth="0.1" 
+               color="darkred"></a-box>
+
+        <!-- Pins container -->
+        <a-entity id="pins-container"></a-entity>
+        
+        <!-- Direction arrow -->
+        <a-entity id="drag-arrow" position="0 0.4 0" visible="false">
+            <a-cylinder position="0 0 -0.5" radius="0.02" height="1" color="#FFD700" rotation="90 0 0"></a-cylinder>
+            <a-cone position="0 0 -1" radius-bottom="0.08" radius-top="0" height="0.2" color="#FFD700" rotation="-90 0 0"></a-cone>
+        </a-entity>
+
+        <!-- Bowling ball -->
+        <a-sphere id="bowling-ball" 
+                  position="0 0.4 0" 
+                  radius="0.15" 
+                  dynamic-body="mass: 7; linearDamping: 0.2; angularDamping: 0.2"
+                  material="color: #8A2BE2; metalness: 0.6; roughness: 0.3">
+        </a-sphere>
+
+        <a-camera id="player-camera" position="0 2.5 4" rotation="-15 0 0" look-controls="enabled: false"></a-camera>
+    </a-scene>
+
+    <div class="ui-container">
+        <h2 id="game-status" style="text-align: center;">Loading...</h2>
+        <table id="scoreboard">
+            <thead>
+                <tr>
+                    <th class="frame-header">1</th><th class="frame-header">2</th><th class="frame-header">3</th>
+                    <th class="frame-header">4</th><th class="frame-header">5</th><th class="frame-header">6</th>
+                    <th class="frame-header">7</th><th class="frame-header">8</th><th class="frame-header">9</th>
+                    <th class="frame-header">10</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td id="f1-scores">&nbsp;</td><td id="f2-scores">&nbsp;</td><td id="f3-scores">&nbsp;</td>
+                    <td id="f4-scores">&nbsp;</td><td id="f5-scores">&nbsp;</td><td id="f6-scores">&nbsp;</td>
+                    <td id="f7-scores">&nbsp;</td><td id="f8-scores">&nbsp;</td><td id="f9-scores">&nbsp;</td>
+                    <td id="f10-scores">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td id="f1-total" class="frame-total">&nbsp;</td><td id="f2-total" class="frame-total">&nbsp;</td>
+                    <td id="f3-total" class="frame-total">&nbsp;</td><td id="f4-total" class="frame-total">&nbsp;</td>
+                    <td id="f5-total" class="frame-total">&nbsp;</td><td id="f6-total" class="frame-total">&nbsp;</td>
+                    <td id="f7-total" class="frame-total">&nbsp;</td><td id="f8-total" class="frame-total">&nbsp;</td>
+                    <td id="f9-total" class="frame-total">&nbsp;</td><td id="f10-total" class="frame-total">&nbsp;</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div id="drag-indicator">
+        🎯 Power: <span id="power-display">0</span>% | Direction: <span id="direction-display">0</span>°
+    </div>
+    
+    <div id="drag-visual">
+        ⬇️ DRAG DOWN TO AIM ⬇️
+    </div>
+    
+    <div class="controls">
+        <button id="start-game-button" disabled>Loading...</button>
+        <button id="restart-game-button" class="hidden">Restart Game</button>
+    </div>
+    
+    <div id="message" class="message-display"></div>
+
+    <script>
+        console.log('🎳 Script starting...');
+        
+        const scene = document.querySelector('a-scene');
+        const ball = document.getElementById('bowling-ball');
+        const dragArrow = document.getElementById('drag-arrow');
+        const startGameButton = document.getElementById('start-game-button');
+        const restartGameButton = document.getElementById('restart-game-button');
+        const gameStatus = document.getElementById('game-status');
+        const pinsContainer = document.getElementById('pins-container');
+        const messageDisplay = document.getElementById('message');
+        const powerDisplay = document.getElementById('power-display');
+        const directionDisplay = document.getElementById('direction-display');
+        const dragVisual = document.getElementById('drag-visual');
+
+        let isGameStarted = false;
+        let physicsReady = false;
+        let gameState = {};
+        let pins = [];
+        let dragState = { 
+            isDragging: false, 
+            startX: 0, 
+            startY: 0,
+            currentX: 0,
+            currentY: 0
+        };
+
+        const pinPositions = [
+            { x: 0, z: -17 },
+            { x: -0.15, z: -17.3 }, { x: 0.15, z: -17.3 },
+            { x: -0.3, z: -17.6 }, { x: 0, z: -17.6 }, { x: 0.3, z: -17.6 },
+            { x: -0.45, z: -17.9 }, { x: -0.15, z: -17.9 }, 
+            { x: 0.15, z: -17.9 }, { x: 0.45, z: -17.9 }
+        ];
+
+        function createPins() {
+            console.log('Creating pins...');
+            pins.length = 0;
+            pinsContainer.innerHTML = '';
+            
+            pinPositions.forEach((pos, index) => {
+                const pinEntity = document.createElement('a-entity');
+                pinEntity.setAttribute('position', `${pos.x} 0.35 ${pos.z}`);
+                pinEntity.setAttribute('dynamic-body', 'shape: cylinder; height: 0.4; radiusTop: 0.06; radiusBottom: 0.06; mass: 1.3; linearDamping: 0.5; angularDamping: 0.6');
+                
+                const cylinder = document.createElement('a-cylinder');
+                cylinder.setAttribute('color', 'white');
+                cylinder.setAttribute('height', 0.4);
+                cylinder.setAttribute('radius', 0.06);
+                
+                const ring = document.createElement('a-torus');
+                ring.setAttribute('color', 'red');
+                ring.setAttribute('radius', 0.06);
+                ring.setAttribute('radius-tubular', 0.008);
+                ring.setAttribute('rotation', '90 0 0');
+                ring.setAttribute('position', '0 0.05 0');
+                
+                pinEntity.appendChild(cylinder);
+                pinEntity.appendChild(ring);
+                pinsContainer.appendChild(pinEntity);
+                pins.push(pinEntity);
+                pinEntity.isFallen = false;
+            });
+            
+            console.log(`✅ Created ${pins.length} pins`);
+        }
+
+        function initializeGame() {
+            console.log('Initializing game...');
+            gameState = {
+                frame: 1,
+                ball: 1,
+                pinsStanding: 10,
+                frames: Array(10).fill(null).map(() => ({
+                    balls: [],
+                    score: 0
+                })),
+                isGameOver: false,
+                isThrowing: false
+            };
+            
+            resetAllPins();
+            resetBall();
+            
+            for (let i = 1; i <= 10; i++) {
+                document.getElementById(`f${i}-scores`).innerHTML = '&nbsp;';
+                document.getElementById(`f${i}-total`).innerHTML = '&nbsp;';
+            }
+            
+            updateUI();
+        }
+
+        function handleMouseDown(event) {
+            if (!isGameStarted || !physicsReady || gameState.isThrowing || gameState.isGameOver) {
+                return;
+            }
+            
+            dragState.isDragging = true;
+            dragState.startX = event.clientX;
+            dragState.startY = event.clientY;
+            dragState.currentX = event.clientX;
+            dragState.currentY = event.clientY;
+            
+            dragArrow.setAttribute('visible', true);
+            dragVisual.style.display = 'block';
+            
+            console.log('✅ Drag started');
+        }
+
+        function handleMouseMove(event) {
+            if (!dragState.isDragging) return;
+            
+            dragState.currentX = event.clientX;
+            dragState.currentY = event.clientY;
+            
+            // Calculate drag deltas
+            const deltaX = event.clientX - dragState.startX;  // Positive = drag right
+            const deltaY = dragState.startY - event.clientY;  // Positive = drag down (toward you)
+            
+            const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const power = Math.min(100, Math.round((dragDistance / 3)));
+            
+            // Calculate angle for display and arrow
+            // When deltaX is positive (drag right), angle should be positive (arrow points right, ball goes right)
+            // When deltaX is negative (drag left), angle should be negative (arrow points left, ball goes left)
+            const angle = Math.atan2(deltaX, deltaY) * (180 / Math.PI);
+            
+            powerDisplay.textContent = power;
+            directionDisplay.textContent = Math.round(angle);
+            
+            const arrowLength = Math.min(2, dragDistance / 100);
+            dragArrow.setAttribute('scale', `1 1 ${arrowLength}`);
+            dragArrow.setAttribute('rotation', `0 ${angle} 0`);  // Changed from -angle to angle
+        }
+
+        function handleMouseUp(event) {
+            if (!dragState.isDragging) return;
+            
+            dragState.isDragging = false;
+            dragArrow.setAttribute('visible', false);
+            dragVisual.style.display = 'none';
+            
+            // Calculate the drag vector
+            const deltaX = event.clientX - dragState.startX;  // Positive = dragged right
+            const deltaY = dragState.startY - event.clientY;  // Positive = dragged down
+            
+            console.log('Drag ended. Delta:', { deltaX, deltaY });
+            
+            const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            if (dragDistance < 20) {
+                console.log('Drag too short');
+                return;
+            }
+            
+            const power = Math.min(120, Math.max(30, dragDistance / 3));
+            
+            // Ball should go in the SAME direction as the drag
+            // If you drag right (positive deltaX), ball goes right (positive forceX)
+            // If you drag left (negative deltaX), ball goes left (negative forceX)
+            const forceX = (deltaX / dragDistance) * power;  // SAME direction as drag
+            const forceZ = (deltaY / dragDistance) * power;  // Forward
+            
+            console.log('Throwing with force:', { forceX, forceZ, power, angle: Math.round(Math.atan2(deltaX, deltaY) * 180 / Math.PI) });
+            
+            throwBall(forceX, forceZ);
+        }
+
+        function throwBall(forceX, forceZ) {
+            console.log('🎳 Attempting to throw ball...');
+            
+            if (!ball.body) {
+                console.error('❌ No physics body on ball!');
+                showMessage("Physics Error!", 2000);
+                gameState.isThrowing = false;
+                return;
+            }
+            
+            gameState.isThrowing = true;
+            console.log('✅ Ball body exists, applying force');
+            
+            ball.body.wakeUp();
+            ball.body.velocity.set(0, 0, 0);
+            ball.body.angularVelocity.set(0, 0, 0);
+            
+            console.log('Before impulse - velocity:', ball.body.velocity);
+            
+            const impulse = new CANNON.Vec3(forceX, 0, forceZ);
+            ball.body.applyImpulse(impulse, ball.body.position);
+            
+            const spinX = -forceZ * 0.3;
+            const spinY = forceX * 0.2;
+            ball.body.angularVelocity.set(spinX, spinY, 0);
+            
+            console.log('After impulse - velocity:', ball.body.velocity);
+            console.log('Angular velocity:', ball.body.angularVelocity);
+            
+            // Wake up all pins so they can be knocked down
+            pins.forEach(pin => {
+                if (pin.body) {
+                    pin.body.wakeUp();
+                }
+            });
+            
+            // VERY AGGRESSIVE pin motion control at 1.5 seconds
+            setTimeout(() => {
+                console.log('⏸️ First aggressive damping...');
+                pins.forEach(pin => {
+                    if (pin.body) {
+                        const pos = pin.body.position;
+                        const velocity = pin.body.velocity;
+                        const angVel = pin.body.angularVelocity;
+                        const speed = Math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2);
+                        
+                        // If pin is flying or moving fast, bring it down hard
+                        if (pos.y > 0.6 || speed > 2) {
+                            pin.body.velocity.scale(0.1, pin.body.velocity);
+                            pin.body.angularVelocity.scale(0.1, pin.body.angularVelocity);
+                            // Add downward force if flying
+                            if (pos.y > 0.6) {
+                                pin.body.velocity.y = -2;
+                            }
+                        }
+                    }
+                });
+            }, 1500);
+            
+            // Second pass at 2.5 seconds - almost complete stop
+            setTimeout(() => {
+                console.log('⏸️ Second damping - near complete stop...');
+                pins.forEach(pin => {
+                    if (pin.body) {
+                        const pos = pin.body.position;
+                        const velocity = pin.body.velocity;
+                        
+                        // Extreme damping
+                        if (pos.y > 0.5) {
+                            pin.body.velocity.set(0, -1, 0); // Force down
+                            pin.body.angularVelocity.set(0, 0, 0);
+                        } else {
+                            pin.body.velocity.scale(0.05, pin.body.velocity);
+                            pin.body.angularVelocity.scale(0.05, pin.body.angularVelocity);
+                        }
+                    }
+                });
+            }, 2500);
+            
+            // Final stop at 3.5 seconds
+            setTimeout(() => {
+                console.log('⏸️ Final stop - freezing all pins...');
+                pins.forEach(pin => {
+                    if (pin.body) {
+                        pin.body.velocity.set(0, 0, 0);
+                        pin.body.angularVelocity.set(0, 0, 0);
+                    }
+                });
+            }, 3500);
+            
+            setTimeout(() => {
+                console.log('After 500ms - ball position:', ball.body.position, 'velocity:', ball.body.velocity);
+            }, 500);
+            
+            // Count fallen pins after 4 seconds
+            setTimeout(countFallenPins, 4000);
+        }
+
+        function resetBall() {
+            if (ball.body) {
+                ball.body.velocity.set(0, 0, 0);
+                ball.body.angularVelocity.set(0, 0, 0);
+                ball.body.position.set(0, 0.4, 0);
+                ball.setAttribute('position', '0 0.4 0');
+            }
+        }
+
+        function countFallenPins() {
+            console.log('🎯 Counting fallen pins...');
+            
+            // ABSOLUTE STOP - freeze everything
+            pins.forEach(pin => {
+                if (pin.body) {
+                    pin.body.velocity.set(0, 0, 0);
+                    pin.body.angularVelocity.set(0, 0, 0);
+                    pin.body.sleep();
+                    
+                    // Force pins back to ground if flying
+                    if (pin.body.position.y > 0.55) {
+                        pin.body.position.y = 0.2;
+                        pin.body.wakeUp();
+                        pin.body.sleep();
+                    }
+                }
+            });
+            
+            console.log('All pin motion FROZEN');
+            
+            // Longer delay to ensure everything settled
+            setTimeout(() => {
+                let pinsHit = 0;
+                let fallenPinsDetails = [];
+                
+                pins.forEach((pin, index) => {
+                    if (!pin.body) {
+                        console.warn(`Pin ${index + 1} has no body!`);
+                        return;
+                    }
+                    
+                    const pos = pin.body.position;
+                    const rot = pin.object3D.rotation;
+                    const originalPos = pinPositions[index];
+                    
+                    // Calculate how much the pin moved from original position
+                    const deltaX = Math.abs(pos.x - originalPos.x);
+                    const deltaZ = Math.abs(pos.z - originalPos.z);
+                    const totalMovement = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+                    
+                    // Detection criteria
+                    const isFallenByHeight = pos.y < 0.24; // Low to ground
+                    const isFallenByTilt = Math.abs(rot.x) > 0.5 || Math.abs(rot.z) > 0.5; // Significantly tilted
+                    const isFallenByMovement = totalMovement > 0.15; // Moved significantly from original spot
+                    
+                    // Pin is knocked if:
+                    // 1. Tilted (tilted pins count as fallen) OR
+                    // 2. Very low to ground OR
+                    // 3. At least 2 conditions met (height + movement, etc.)
+                    const conditionsMet = [isFallenByHeight, isFallenByMovement].filter(c => c).length;
+                    const isKnockedDown = isFallenByTilt || (pos.y < 0.20) || (conditionsMet >= 2);
+                    
+                    if (isKnockedDown && !pin.isFallen) {
+                        pinsHit++;
+                        pin.isFallen = true;
+                        
+                        const reasons = [];
+                        if (isFallenByHeight) reasons.push('LOW');
+                        if (isFallenByTilt) reasons.push('TILTED');
+                        if (isFallenByMovement) reasons.push(`MOVED(${totalMovement.toFixed(2)})`);
+                        
+                        fallenPinsDetails.push({
+                            pin: index + 1,
+                            reasons: reasons.join('+'),
+                            y: pos.y.toFixed(3),
+                            rotX: rot.x.toFixed(3),
+                            rotZ: rot.z.toFixed(3),
+                            movement: totalMovement.toFixed(3)
+                        });
+                        console.log(`✅ Pin ${index + 1} DOWN - [${reasons.join('+')}] | Y:${pos.y.toFixed(3)} Movement:${totalMovement.toFixed(3)} RotX:${rot.x.toFixed(3)} RotZ:${rot.z.toFixed(3)}`);
+                    } else if (!pin.isFallen) {
+                        console.log(`❌ Pin ${index + 1} STANDING | Y:${pos.y.toFixed(3)} Movement:${totalMovement.toFixed(3)} RotX:${rot.x.toFixed(3)} RotZ:${rot.z.toFixed(3)} [${[isFallenByHeight?'H':'', isFallenByTilt?'T':'', isFallenByMovement?'M':''].filter(x=>x).join('')}]`);
+                    }
+                });
+                
+                console.log('═══════════════════════════════════');
+                console.log('📊 SCORING SUMMARY:');
+                console.log(`✅ Pins knocked THIS ball: ${pinsHit}`);
+                console.log(`📍 Total fallen pins: ${pins.filter(p => p.isFallen).length}`);
+                console.log(`📍 Pins still standing: ${pins.filter(p => !p.isFallen).length}`);
+                console.log('Fallen pins:', fallenPinsDetails);
+                console.log('═══════════════════════════════════');
+                
+                processTurn(pinsHit, false);
+            }, 300);
+        }
+
+        function processTurn(pinsHit, isFoul) {
+            const frameIndex = gameState.frame - 1;
+            const currentFrame = gameState.frames[frameIndex];
+            
+            if (isFoul) {
+                showMessage("FOUL!", 1500);
+                pinsHit = 0;
+            }
+            
+            currentFrame.balls.push(pinsHit);
+            gameState.pinsStanding -= pinsHit;
+            
+            const isStrike = gameState.ball === 1 && pinsHit === 10;
+            const isSpare = gameState.ball === 2 && gameState.pinsStanding === 0;
+            
+            if (isStrike) showMessage("STRIKE!", 1500);
+            if (isSpare) showMessage("SPARE!", 1500);
+            
+            console.log(`Frame ${gameState.frame}, Ball ${gameState.ball}: ${pinsHit} pins hit`);
+            console.log(`Pins standing: ${gameState.pinsStanding}`);
+            
+            // Determine what to do next based on bowling rules
+            if (gameState.frame < 10) {
+                // Frames 1-9
+                if (isStrike || gameState.ball === 2) {
+                    // Move to next frame - reset ALL pins
+                    console.log('Moving to next frame, resetting all pins');
+                    gameState.frame++;
+                    gameState.ball = 1;
+                    gameState.pinsStanding = 10;
+                    setTimeout(() => {
+                        removeFallenPins(); // First remove fallen pins from view
+                        setTimeout(() => {
+                            resetAllPins(); // Then reset all
+                            resetBall();
+                        }, 200);
+                    }, 1500);
+                } else {
+                    // Second ball of same frame
+                    console.log('Second ball of same frame, removing fallen pins');
+                    gameState.ball++;
+                    setTimeout(() => {
+                        removeFallenPins(); // Remove fallen pins from view
+                        setTimeout(() => {
+                            resetStandingPins(); // Reset only standing pins to proper position
+                            resetBall();
+                        }, 200);
+                    }, 1500);
+                }
+            } else {
+                // Frame 10 - special rules
+                const totalKnocked = (currentFrame.balls[0] || 0) + (currentFrame.balls[1] || 0);
+                
+                if (currentFrame.balls.length === 1) {
+                    // After first ball in frame 10
+                    if (isStrike) {
+                        console.log('Strike in frame 10, ball 1 - reset all pins');
+                        gameState.ball++;
+                        gameState.pinsStanding = 10;
+                        setTimeout(() => {
+                            removeFallenPins();
+                            setTimeout(() => {
+                                resetAllPins();
+                                resetBall();
+                            }, 200);
+                        }, 1500);
+                    } else {
+                        console.log('No strike in frame 10, ball 1 - remove fallen pins');
+                        gameState.ball++;
+                        setTimeout(() => {
+                            removeFallenPins();
+                            setTimeout(() => {
+                                resetStandingPins();
+                                resetBall();
+                            }, 200);
+                        }, 1500);
+                    }
+                } else if (currentFrame.balls.length === 2) {
+                    // After second ball in frame 10
+                    if (totalKnocked >= 10) {
+                        console.log('Spare/strike in frame 10, ball 2 - reset all pins for bonus ball');
+                        gameState.ball++;
+                        gameState.pinsStanding = 10;
+                        setTimeout(() => {
+                            removeFallenPins();
+                            setTimeout(() => {
+                                resetAllPins();
+                                resetBall();
+                            }, 200);
+                        }, 1500);
+                    } else {
+                        console.log('No spare in frame 10, ball 2 - game over');
+                        gameState.isGameOver = true;
+                        setTimeout(() => {
+                            resetBall();
+                        }, 1500);
+                    }
+                } else {
+                    // After third ball in frame 10
+                    console.log('Frame 10 complete - game over');
+                    gameState.isGameOver = true;
+                    setTimeout(() => {
+                        resetBall();
+                    }, 1500);
+                }
+            }
+            
+            calculateScores();
+            updateUI();
+            
+            if (gameState.isGameOver) {
+                showMessage("Game Over!", 3000);
+                restartGameButton.textContent = "Play Again?";
+                gameState.isThrowing = false;
+            } else {
+                gameState.isThrowing = false;
+            }
+        }
+
+        function calculateScores() {
+            let cumulativeScore = 0;
+            
+            for (let i = 0; i < 10; i++) {
+                const frame = gameState.frames[i];
+                
+                if (frame.balls.length) {
+                    let frameScore = 0;
+                    
+                    if (i < 9) {
+                        if (frame.balls[0] === 10) {
+                            frameScore = 10 + getBonusForStrike(i);
+                        } else if (frame.balls[0] + (frame.balls[1] || 0) === 10) {
+                            frameScore = 10 + getBonusForSpare(i);
+                        } else {
+                            frameScore = (frame.balls[0] || 0) + (frame.balls[1] || 0);
+                        }
+                    } else {
+                        frameScore = (frame.balls[0] || 0) + (frame.balls[1] || 0) + (frame.balls[2] || 0);
+                    }
+                    
+                    cumulativeScore += frameScore;
+                    frame.score = cumulativeScore;
+                }
+            }
+        }
+
+        function getBonusForStrike(frameIndex) {
+            const nextFrame = gameState.frames[frameIndex + 1];
+            if (!nextFrame) return 0;
+            
+            if (nextFrame.balls[0] === 10) {
+                if (frameIndex === 8) {
+                    return 10 + (gameState.frames[9].balls[1] || 0);
+                } else {
+                    return 10 + ((gameState.frames[frameIndex + 2] || {balls: [0]}).balls[0] || 0);
+                }
+            } else {
+                return (nextFrame.balls[0] || 0) + (nextFrame.balls[1] || 0);
+            }
+        }
+
+        function getBonusForSpare(frameIndex) {
+            return (gameState.frames[frameIndex + 1] || {balls: [0]}).balls[0] || 0;
+        }
+
+        function updateUI() {
+            if (gameState.isGameOver) {
+                gameStatus.textContent = "Game Over!";
+            } else {
+                gameStatus.textContent = isGameStarted ? 
+                    `Frame: ${gameState.frame} | Ball: ${gameState.ball}` : 
+                    "Click Start Game to Play!";
+            }
+            
+            gameState.frames.forEach((frame, index) => {
+                const scoresCell = document.getElementById(`f${index + 1}-scores`);
+                const totalCell = document.getElementById(`f${index + 1}-total`);
+                
+                let displayText = "";
+                const [ball1, ball2, ball3] = frame.balls;
+                
+                if (index < 9) {
+                    if (ball1 === 10) {
+                        displayText = "X";
+                    } else if (ball1 + ball2 === 10) {
+                        displayText = `${ball1 ?? ''} | /`;
+                    } else {
+                        displayText = `${ball1 ?? ''} | ${ball2 ?? ''}`;
+                    }
+                } else {
+                    const s1 = ball1 === 10 ? "X" : ball1;
+                    const s2 = ball1 !== 10 && ball1 + ball2 === 10 ? "/" : ball2 === 10 ? "X" : ball2;
+                    const s3 = ball2 !== 10 && ball2 + ball3 === 10 ? "/" : ball3 === 10 ? "X" : ball3;
+                    displayText = `${s1 ?? ''} | ${s2 ?? ''} | ${s3 ?? ''}`;
+                }
+                
+                scoresCell.innerHTML = displayText.replace(/undefined/g, '');
+                totalCell.textContent = frame.score || '';
+            });
+        }
+
+        function resetAllPins() {
+            console.log('🔄 Resetting all pins...');
+            pins.forEach((pin, index) => {
+                pin.isFallen = false;
+                
+                if (pin.body) {
+                    const originalPos = pinPositions[index];
+                    
+                    // CRITICAL: Stop all motion first
+                    pin.body.velocity.set(0, 0, 0);
+                    pin.body.angularVelocity.set(0, 0, 0);
+                    
+                    // Reset position - force it to correct location
+                    pin.body.position.set(originalPos.x, 0.35, originalPos.z);
+                    pin.body.quaternion.set(0, 0, 0, 1);
+                    
+                    // Force update the visual element
+                    pin.object3D.position.set(originalPos.x, 0.35, originalPos.z);
+                    pin.object3D.rotation.set(0, 0, 0);
+                    pin.setAttribute('position', `${originalPos.x} 0.35 ${originalPos.z}`);
+                    pin.setAttribute('rotation', '0 0 0');
+                    
+                    // Wake up briefly then sleep to ensure position is set
+                    pin.body.wakeUp();
+                    setTimeout(() => {
+                        if (pin.body) pin.body.sleep();
+                    }, 100);
+                    
+                    console.log(`Pin ${index + 1} reset to X:${originalPos.x} Y:0.35 Z:${originalPos.z}`);
+                }
+            });
+            console.log('✅ All pins reset complete');
+        }
+        
+        function resetStandingPins() {
+            console.log('🔄 Resetting only standing pins...');
+            pins.forEach((pin, index) => {
+                if (!pin.isFallen && pin.body) {
+                    const originalPos = pinPositions[index];
+                    
+                    // Stop motion
+                    pin.body.velocity.set(0, 0, 0);
+                    pin.body.angularVelocity.set(0, 0, 0);
+                    
+                    // Reset position
+                    pin.body.position.set(originalPos.x, 0.35, originalPos.z);
+                    pin.body.quaternion.set(0, 0, 0, 1);
+                    
+                    // Force visual update
+                    pin.object3D.position.set(originalPos.x, 0.35, originalPos.z);
+                    pin.object3D.rotation.set(0, 0, 0);
+                    pin.setAttribute('position', `${originalPos.x} 0.35 ${originalPos.z}`);
+                    pin.setAttribute('rotation', '0 0 0');
+                    
+                    pin.body.wakeUp();
+                    setTimeout(() => {
+                        if (pin.body) pin.body.sleep();
+                    }, 100);
+                }
+            });
+            console.log('✅ Standing pins reset');
+        }
+        
+        function removeFallenPins() {
+            console.log('🗑️ Removing fallen pins from view...');
+            pins.forEach((pin, index) => {
+                if (pin.isFallen && pin.body) {
+                    // Move fallen pins way below the floor (out of view)
+                    pin.body.position.set(0, -10, 0);
+                    pin.object3D.position.set(0, -10, 0);
+                    pin.setAttribute('position', '0 -10 0');
+                    pin.body.velocity.set(0, 0, 0);
+                    pin.body.angularVelocity.set(0, 0, 0);
+                    pin.body.sleep();
+                    console.log(`Pin ${index + 1} removed from view`);
+                }
+            });
+        }
+        
+        function stopAllPinMotion() {
+            console.log('⏸️ Stopping all pin motion...');
+            pins.forEach(pin => {
+                if (pin.body) {
+                    pin.body.velocity.set(0, 0, 0);
+                    pin.body.angularVelocity.set(0, 0, 0);
+                    pin.body.sleep(); // Put to sleep to stop physics calculations
+                }
+            });
+        }
+
+        function showMessage(text, duration) {
+            messageDisplay.textContent = text;
+            messageDisplay.style.display = 'block';
+            setTimeout(() => {
+                messageDisplay.style.display = 'none';
+            }, duration);
+        }
+
+        // Event Listeners
+        document.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        
+        startGameButton.addEventListener('click', () => {
+            if (!physicsReady) {
+                showMessage("Please wait for physics to load", 2000);
+                return;
+            }
+            
+            isGameStarted = true;
+            startGameButton.classList.add('hidden');
+            restartGameButton.classList.remove('hidden');
+            initializeGame();
+        });
+        
+        restartGameButton.addEventListener('click', () => {
+            pinsContainer.innerHTML = '';
+            pins = [];
+            createPins();
+            setTimeout(() => {
+                initializeGame();
+            }, 500);
+        });
+
+        // Wait for scene to load and initialize physics
+        scene.addEventListener('loaded', () => {
+            console.log('✅ Scene loaded');
+            gameStatus.textContent = 'Waiting for physics...';
+            
+            // Wait for physics system
+            setTimeout(() => {
+                console.log('Checking for physics system...');
+                console.log('Ball element:', ball);
+                console.log('Ball body:', ball.body);
+                
+                const checkPhysics = setInterval(() => {
+                    if (ball.body) {
+                        console.log('✅ PHYSICS READY!');
+                        console.log('Ball body details:', {
+                            mass: ball.body.mass,
+                            position: ball.body.position
+                        });
+                        
+                        clearInterval(checkPhysics);
+                        physicsReady = true;
+                        
+                        createPins();
+                        
+                        // Wait for pins to get physics bodies
+                        setTimeout(() => {
+                            const pinsWithBodies = pins.filter(p => p.body).length;
+                            console.log(`✅ ${pinsWithBodies}/10 pins ready`);
+                            
+                            gameStatus.textContent = '✅ Ready! Click Start Game';
+                            startGameButton.disabled = false;
+                            startGameButton.textContent = 'Start Game';
+                            startGameButton.style.backgroundColor = '#4CAF50';
+                        }, 1000);
+                    }
+                }, 200);
+                
+                // Timeout after 10 seconds
+                setTimeout(() => {
+                    if (!physicsReady) {
+                        clearInterval(checkPhysics);
+                        console.error('❌ Physics failed to load');
+                        gameStatus.textContent = '❌ Physics Error - Please reload page';
+                    }
+                }, 10000);
+            }, 1000);
+        });
+
+        console.log('🎳 Script loaded and ready');
+    </script>
+</body>
+</html>

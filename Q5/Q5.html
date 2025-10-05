@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchemaViz: Data Dictionary Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f4f7fa;
+            --bg-sidebar: #ffffff;
+            --bg-code: #2d3748;
+            --text-primary: #2d3748;
+            --text-secondary: #718096;
+            --accent-primary: #3182ce;
+            --accent-secondary: #2c5282;
+            --border-color: #e2e8f0;
+            --white: #ffffff;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-wrapper { display: flex; height: 100vh; }
+
+        /* --- Sidebar Styles --- */
+        .sidebar { flex: 0 0 450px; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 24px; display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar-header { border-bottom: 1px solid var(--border-color); padding-bottom: 16px; margin-bottom: 24px; }
+        .sidebar-header h1 { font-size: 24px; color: var(--accent-secondary); font-weight: 700; }
+        .sidebar-header p { font-size: 14px; color: var(--text-secondary); }
+        .sidebar-section { margin-bottom: 24px; }
+        .sidebar-section h2 { font-size: 16px; margin-bottom: 12px; color: var(--text-primary); font-weight: 500; }
+        #jsonInput { width: 100%; min-height: 250px; border-radius: 8px; border: 1px solid var(--border-color); padding: 12px; font-family: 'Fira Code', monospace; font-size: 13px; background-color: #fdfdff; resize: vertical; }
+        #jsonInput:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2); }
+        .input-options { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+        .file-upload-area { text-align: center; border: 2px dashed var(--border-color); padding: 20px; border-radius: 8px; }
+        .file-upload-area p { color: var(--text-secondary); font-size: 14px; margin-bottom: 12px; }
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 15px; transition: all 0.2s ease; }
+        .btn-primary { background-color: var(--accent-primary); color: var(--white); }
+        .btn-primary:hover { background-color: var(--accent-secondary); }
+        .btn-secondary { background-color: transparent; color: var(--accent-secondary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background-color: var(--bg-main); border-color: #cbd5e0; }
+        .btn-tertiary { background-color: #edf2f7; color: var(--text-primary); }
+        .btn-tertiary:hover { background-color: #e2e8f0; }
+
+        /* --- Main Content Styles --- */
+        .main-content { flex: 1; padding: 32px; overflow-y: auto; }
+        .welcome-view, .output-view { max-width: 900px; margin: 0 auto; }
+        .content-card { background-color: var(--bg-sidebar); border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid var(--border-color); }
+        .welcome-view h2 { font-size: 28px; margin-bottom: 12px; }
+        .welcome-view h3 { font-size: 20px; color: var(--accent-secondary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin: 24px 0 16px; }
+        .welcome-view p, .welcome-view li { color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px; }
+        .welcome-view ol { padding-left: 20px; }
+        .sql-example { background-color: var(--bg-code); color: #f7fafc; padding: 16px; border-radius: 8px; font-family: 'Fira Code', monospace; font-size: 13px; overflow-x: auto; white-space: pre; }
+        .output-header h2 { font-size: 28px; color: var(--accent-secondary); }
+        .output-header p { color: var(--text-secondary); }
+        .columns-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .columns-table th, .columns-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        .columns-table th { background-color: #edf2f7; font-weight: 500; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 99px; font-size: 11px; font-weight: 500; margin: 2px; text-transform: uppercase; }
+        .badge-pk { background: #faf089; color: #744210; }
+        .badge-fk { background: #90cdf4; color: #2c5282; }
+        .badge-unique { background: #d6bcfa; color: #553c9a; }
+        .badge-nullable { background: #e2e8f0; color: #4a5568; }
+        #erDiagramCanvas { width: 100%; border-radius: 8px; background: var(--bg-sidebar); margin-top: 16px; }
+        .alert { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; color: var(--white); box-shadow: var(--shadow); z-index: 1000; opacity: 0; transition: opacity 0.3s ease, top 0.3s ease; }
+        .alert.show { top: 40px; opacity: 1; }
+        .alert-success { background-color: #38a169; }
+        .alert-error { background-color: #e53e3e; }
+        
+        .print-only { display: none; }
+
+        /* --- Print Specific Styles --- */
+        @media print {
+            body { background: #fff; height: auto; overflow: visible; }
+            .sidebar, .alert, .sidebar-section h2:nth-of-type(3), #exportControls { display: none; }
+            .app-wrapper { display: block; height: auto; }
+            .main-content { padding: 0; overflow: visible; height: auto; }
+            .content-card { box-shadow: none; border: 1px solid #ddd; page-break-inside: avoid; }
+            #erDiagramCanvas { display: none; }
+            .print-only { display: block; width: 100%; height: auto; margin-top: 16px; }
+            a { color: #000; text-decoration: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>SchemaViz</h1>
+                <p>Data Dictionary Generator</p>
+            </div>
+
+            <div class="sidebar-section">
+                <h2>1. Provide Schema (JSON)</h2>
+                <textarea id="jsonInput" placeholder="Paste your schema JSON here..."></textarea>
+                <div class="input-options">
+                    <button class="btn btn-tertiary" onclick="loadSampleData()">📋 Load Sample Data</button>
+                    <div class="file-upload-area">
+                        <p>Or upload from your computer</p>
+                        <input type="file" id="fileInput" accept=".json" style="display: none;">
+                        <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+                            Browse File
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                 <h2>2. Generate</h2>
+                <button class="btn btn-primary" onclick="generateDictionary()">✨ Visualize Schema</button>
+            </div>
+            
+             <div class="sidebar-section" id="exportControls" style="display: none;">
+                 <h2>3. Export</h2>
+                 <div style="display: flex; gap: 12px; flex-direction: column;">
+                    <button class="btn btn-secondary" onclick="exportHTML()">Export as HTML</button>
+                    <button class="btn btn-secondary" onclick="window.print()">Print / Save as PDF</button>
+                 </div>
+            </div>
+            
+        </aside>
+
+        <main class="main-content" id="mainContent">
+            </main>
+    </div>
+    
+    <div id="alertContainer"></div>
+
+    <script>
+        let schemaData = null;
+        let erDiagramDataUrl = '';
+
+        // --- Core Application Logic ---
+        window.onload = () => { loadWelcomeView(); };
+
+        function generateDictionary() {
+            const jsonInput = document.getElementById('jsonInput').value.trim();
+            if (!jsonInput) { showAlert('Please provide a JSON schema to visualize.', 'error'); return; }
+            try {
+                schemaData = JSON.parse(jsonInput);
+                if (!schemaData.tables || !Array.isArray(schemaData.tables)) { throw new Error('Invalid schema: "tables" array is required.'); }
+                loadOutputView();
+                document.getElementById('exportControls').style.display = 'block';
+                showAlert('Schema visualized successfully!', 'success');
+            } catch (error) { showAlert('Error parsing JSON: ' + error.message, 'error'); }
+        }
+        
+        function loadSampleData() {
+            const sampleJson = getSampleJson();
+            document.getElementById('jsonInput').value = JSON.stringify(sampleJson, null, 2);
+            showAlert('Sample data loaded!', 'success');
+        }
+
+        // --- View Loaders ---
+        function loadWelcomeView() {
+            const mainContent = document.getElementById('mainContent');
+            mainContent.innerHTML = `
+                <div class="welcome-view">
+                    <div class="content-card">
+                        <h2>Welcome to SchemaViz</h2>
+                        <p>This tool helps you generate a beautiful, easy-to-read data dictionary and a table relationship diagram from a simple JSON definition of your database schema.</p>
+                    </div>
+                    <div class="content-card">
+                        <h3>How It Works</h3>
+                        <ol>
+                            <li><strong>Extract Schema:</strong> Use one of the SQL queries below.</li>
+                            <li><strong>Format as JSON:</strong> Structure the data into the required JSON format.</li>
+                            <li><strong>Input & Visualize:</strong> Paste your JSON and click 'Visualize Schema'.</li>
+                            <li><strong>Export:</strong> Export your new documentation as HTML or PDF.</li>
+                        </ol>
+                    </div>
+                    <div class="content-card">
+                        <h3>SQL Schema Extraction Queries</h3>
+                        <h4>For MySQL/MariaDB:</h4>
+                        <div class="sql-example"></div>
+                        <h4>For PostgreSQL:</h4>
+                        <div class="sql-example"></div>
+                        <h4>For SQL Server:</h4>
+                        <div class="sql-example"></div>
+                    </div>
+                </div>
+            `;
+            mainContent.querySelectorAll('.sql-example')[0].textContent = getMySqlQueries();
+            mainContent.querySelectorAll('.sql-example')[1].textContent = getPostgresQueries();
+            mainContent.querySelectorAll('.sql-example')[2].textContent = getSqlServerQueries();
+        }
+
+        function loadOutputView() {
+            const mainContent = document.getElementById('mainContent');
+            let html = `
+                <div class="output-view">
+                    <div class="content-card output-header">
+                        <h2>${schemaData.database || 'Database'} Dictionary</h2>
+                        <p>${schemaData.description || `A comprehensive overview of the database schema.`}</p>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">Generated on ${new Date().toLocaleDateString()}</p>
+                    </div>
+                    <div class="content-card">
+                        <h3>Entity Relationship Diagram</h3>
+                        <canvas id="erDiagramCanvas"></canvas>
+                        <img id="erDiagramPrint" class="print-only" alt="Entity Relationship Diagram">
+                    </div>
+            `;
+            schemaData.tables.forEach((table, index) => {
+                html += `<div class="content-card" id="table-${index}"><h3>Table: ${table.name}</h3><p style="color: var(--text-secondary);">${table.description || ''}</p><table class="columns-table"><thead><tr><th>Column</th><th>Data Type</th><th>Constraints</th><th>Description</th></tr></thead><tbody>`;
+                table.columns.forEach(column => {
+                    let badges = '';
+                    if (column.primaryKey) badges += '<span class="badge badge-pk">Primary Key</span>';
+                    if (column.foreignKey) badges += '<span class="badge badge-fk">Foreign Key</span>';
+                    if (column.unique) badges += '<span class="badge badge-unique">Unique</span>';
+                    if (column.nullable) badges += '<span class="badge badge-nullable">Nullable</span>';
+                    let fkInfo = column.foreignKey ? `<br><small style="color: var(--accent-primary);">→ ${column.foreignKey.table}.${column.foreignKey.column}</small>` : '';
+                    html += `<tr><td><strong>${column.name}</strong></td><td>${column.type}</td><td>${badges}</td><td>${column.description || ''}${fkInfo}</td></tr>`;
+                });
+                html += `</tbody></table></div>`;
+            });
+            html += `</div>`;
+            mainContent.innerHTML = html;
+            setTimeout(drawERDiagram, 100);
+        }
+
+        // --- Canvas Drawing & Utility Functions (omitted for brevity, but they are unchanged) ---
+        function drawERDiagram() { const canvas = document.getElementById('erDiagramCanvas'); if (!canvas) return; const ctx = canvas.getContext('2d'); const tables = schemaData.tables; const TABLE_WIDTH = 220, HEADER_HEIGHT = 40, ROW_HEIGHT = 25, PADDING = 40, X_SPACING = 60, Y_SPACING = 60; const tableDimensions = tables.map(table => ({ height: HEADER_HEIGHT + table.columns.length * ROW_HEIGHT })); const tablePositions = []; let currentX = PADDING, currentY = PADDING, maxRowHeight = 0; const canvasWidth = canvas.offsetWidth; canvas.width = canvasWidth; tables.forEach((table, index) => { const tableHeight = tableDimensions[index].height; if (currentX + TABLE_WIDTH > canvasWidth - PADDING) { currentX = PADDING; currentY += maxRowHeight + Y_SPACING; maxRowHeight = 0; } tablePositions.push({ name: table.name, x: currentX, y: currentY }); maxRowHeight = Math.max(maxRowHeight, tableHeight); currentX += TABLE_WIDTH + X_SPACING; }); canvas.height = currentY + maxRowHeight + PADDING; ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-sidebar').trim(); ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.strokeStyle = '#a0aec0'; ctx.lineWidth = 1.5; tables.forEach((table, index) => { table.columns.forEach(column => { if (column.foreignKey) { const fromPos = tablePositions[index]; const toTable = tablePositions.find(p => p.name === column.foreignKey.table); if (toTable) { const fromX = fromPos.x + TABLE_WIDTH; const fromY = fromPos.y + HEADER_HEIGHT + table.columns.indexOf(column) * ROW_HEIGHT + ROW_HEIGHT / 2; const toX = toTable.x; const toY = toTable.y + HEADER_HEIGHT / 2; ctx.beginPath(); ctx.moveTo(fromX, fromY); ctx.bezierCurveTo(fromX + X_SPACING / 2, fromY, toX - X_SPACING / 2, toY, toX, toY); ctx.stroke(); } } }); }); tablePositions.forEach(({ name, x, y }, index) => { const table = tables[index]; const height = tableDimensions[index].height; ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary').trim(); ctx.fillRect(x, y, TABLE_WIDTH, HEADER_HEIGHT); ctx.fillStyle = 'white'; ctx.font = "500 15px 'Inter'"; ctx.textAlign = 'center'; ctx.fillText(table.name, x + TABLE_WIDTH / 2, y + 25); ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim(); ctx.strokeRect(x,y, TABLE_WIDTH, height); ctx.font = "13px 'Inter'"; ctx.textAlign = 'left'; table.columns.forEach((column, colIndex) => { const colY = y + HEADER_HEIGHT + colIndex * ROW_HEIGHT + 18; let prefix = column.primaryKey ? '🔑 ' : (column.foreignKey ? '🔗 ' : '▪ '); ctx.fillStyle = '#2d3748'; ctx.fillText(prefix + column.name, x + 12, colY); }); }); erDiagramDataUrl = canvas.toDataURL('image/png'); const printImg = document.getElementById('erDiagramPrint'); if(printImg) printImg.src = erDiagramDataUrl; }
+        document.getElementById('fileInput').addEventListener('change', (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { document.getElementById('jsonInput').value = event.target.result; showAlert('File loaded successfully!', 'success'); }; reader.readAsText(file); });
+        function showAlert(message, type) { const container = document.getElementById('alertContainer'); const alertDiv = document.createElement('div'); alertDiv.className = `alert alert-${type}`; alertDiv.textContent = message; container.appendChild(alertDiv); setTimeout(() => { alertDiv.classList.add('show'); }, 10); setTimeout(() => { alertDiv.classList.remove('show'); setTimeout(() => { container.removeChild(alertDiv); }, 300); }, 3000); }
+        function exportHTML() { if (!schemaData) return; let outputHtml = document.getElementById('mainContent').innerHTML; if (erDiagramDataUrl) { const canvasTagRegex = /<canvas id="erDiagramCanvas"[^>]*><\/canvas>/; const imgTag = `<img src="${erDiagramDataUrl}" alt="ER Diagram" style="width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 8px;">`; outputHtml = outputHtml.replace(canvasTagRegex, imgTag); } const originalStyle = document.querySelector('style').innerHTML; const exportStyle = `html, body { overflow: auto; height: auto; } .main-content { overflow: visible; } .app-wrapper { display: block; }`; const htmlContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${schemaData.database} Dictionary</title><style>${originalStyle} ${exportStyle}</style></head><body><main class="main-content">${outputHtml}</main></body></html>`; const blob = new Blob([htmlContent], { type: 'text/html' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${schemaData.database || 'database'}_dictionary.html`; a.click(); URL.revokeObjectURL(url); }
+        
+        // --- DATA HELPERS WITH FULL CONTENT ---
+
+        function getMySqlQueries() {
+            return `-- For MySQL/MariaDB: Merge the results of these two queries.
+
+-- Query 1: Get table and column information
+SELECT 
+    TABLE_NAME as table_name,
+    COLUMN_NAME as column_name,
+    DATA_TYPE as data_type,
+    IS_NULLABLE as is_nullable,
+    COLUMN_KEY as column_key, -- PRI for Primary Key, UNI for Unique
+    COLUMN_COMMENT as description
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'your_database_name'
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+
+-- Query 2: Get foreign key relationships
+SELECT 
+    TABLE_NAME as table_name,
+    COLUMN_NAME as column_name,
+    REFERENCED_TABLE_NAME as references_table,
+    REFERENCED_COLUMN_NAME as references_column
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = 'your_database_name' AND REFERENCED_TABLE_NAME IS NOT NULL;`;
+        }
+        function getPostgresQueries() {
+            return `-- For PostgreSQL: Merge the results of these two queries.
+
+-- Query 1: Get table and column information
+SELECT 
+    c.table_name,
+    c.column_name,
+    c.data_type,
+    c.is_nullable,
+    (SELECT pg_catalog.col_description(a.attrelid, a.attnum)
+     FROM pg_catalog.pg_attribute a
+     WHERE a.attrelid = c.table_name::regclass AND a.attname = c.column_name) as description
+FROM information_schema.columns c
+WHERE c.table_schema = 'public'
+ORDER BY c.table_name, c.ordinal_position;
+
+-- Query 2: Get foreign key relationships
+SELECT
+    tc.table_name,
+    kcu.column_name,
+    ccu.table_name AS references_table,
+    ccu.column_name AS references_column
+FROM information_schema.table_constraints tc
+JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = 'public';`;
+        }
+        function getSqlServerQueries() {
+            return `-- For SQL Server: Merge results from these two queries.
+
+-- Query 1: Get table and column information
+SELECT 
+    t.name AS table_name,
+    c.name AS column_name,
+    ty.name AS data_type,
+    c.is_nullable,
+    CAST(ep.value AS NVARCHAR(500)) AS description
+FROM sys.tables t
+INNER JOIN sys.columns c ON t.object_id = c.object_id
+INNER JOIN sys.types ty ON c.user_type_id = ty.user_type_id
+LEFT JOIN sys.extended_properties ep ON ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.name = 'MS_Description'
+ORDER BY t.name, c.column_id;
+
+-- Query 2: Get foreign key relationships
+SELECT 
+    OBJECT_NAME(fk.parent_object_id) AS table_name,
+    COL_NAME(fkc.parent_object_id, fkc.parent_column_id) AS column_name,
+    OBJECT_NAME(fk.referenced_object_id) AS references_table,
+    COL_NAME(fkc.referenced_object_id, fkc.referenced_column_id) AS references_column
+FROM sys.foreign_keys AS fk
+INNER JOIN sys.foreign_key_columns AS fkc ON fk.object_id = fkc.constraint_object_id;`;
+        }
+        function getSampleJson() {
+            return {"database":"E-Commerce Database","description":"Sample e-commerce database schema","tables":[{"name":"customers","description":"Stores customer information.","columns":[{"name":"customer_id","type":"INT","primaryKey":true,"nullable":false,"description":"Unique customer identifier"},{"name":"email","type":"VARCHAR(255)","unique":true,"nullable":false,"description":"Customer email address"},{"name":"name","type":"VARCHAR(100)","nullable":false,"description":"Customer full name"},{"name":"created_at","type":"TIMESTAMP","nullable":false,"description":"Account creation date"}]},{"name":"orders","description":"Stores customer orders.","columns":[{"name":"order_id","type":"INT","primaryKey":true,"nullable":false,"description":"Unique order identifier"},{"name":"customer_id","type":"INT","foreignKey":{"table":"customers","column":"customer_id"},"nullable":false,"description":"Reference to the customer who placed the order."},{"name":"order_date","type":"TIMESTAMP","nullable":false,"description":"Date and time the order was placed."},{"name":"total_amount","type":"DECIMAL(10,2)","nullable":false,"description":"Total order amount"}]},{"name":"products","description":"Contains the product catalog.","columns":[{"name":"product_id","type":"INT","primaryKey":true,"nullable":false,"description":"Unique product identifier"},{"name":"name","type":"VARCHAR(200)","nullable":false,"description":"Product name"},{"name":"price","type":"DECIMAL(10,2)","nullable":false,"description":"Product price"}]},{"name":"order_items","description":"A junction table linking orders and products.","columns":[{"name":"order_item_id","type":"INT","primaryKey":true,"nullable":false,"description":"Unique order item identifier"},{"name":"order_id","type":"INT","foreignKey":{"table":"orders","column":"order_id"},"nullable":false,"description":"Reference to the order."},{"name":"product_id","type":"INT","foreignKey":{"table":"products","column":"product_id"},"nullable":false,"description":"Reference to the product."},{"name":"quantity","type":"INT","nullable":false,"description":"Quantity of the product ordered"},{"name":"price","type":"DECIMAL(10,2)","nullable":false,"description":"Price of the product at the time of order."}]}]};
+        }
+    </script>
+</body>
+</html>

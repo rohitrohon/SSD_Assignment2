@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- The meta tags define character set and viewport for responsive design -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- The title of the webpage -->
+    <title>Nash Equilibrium: Arcade Edition</title>
+    <!-- Imports pixelated fonts from Google Fonts for the retro theme -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        /* CSS variables for a consistent color scheme */
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --accent-pink: #ff00ff;
+            --accent-cyan: #00ffff;
+            --accent-green: #00ff00;
+            --accent-red: #ff0000;
+            --border-color: #333;
+        }
+
+        /* Basic reset to remove default browser margins and paddings */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Body styling sets the background, font, and centers the game container */
+        body {
+            font-family: 'VT323', monospace;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* The main container for the entire game interface */
+        .game-container {
+            width: 100%;
+            max-width: 1200px;
+            background-color: #252525;
+            border: 3px solid var(--border-color);
+            box-shadow: 0 0 20px var(--accent-cyan);
+            display: grid;
+            grid-template-columns: 250px 1fr 250px;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        /* Styling for the left and right side panels */
+        .side-panel {
+            background-color: var(--bg-color);
+            border: 2px solid var(--border-color);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Styling for section titles within the side panels */
+        .panel-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 16px;
+            color: var(--accent-pink);
+            text-align: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            text-shadow: 0 0 5px var(--accent-pink);
+        }
+
+        /* The main central area for gameplay */
+        .center-panel {
+            background-color: var(--bg-color);
+            border: 2px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Header styling for the game title */
+        .game-header h1 {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 28px;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 10px var(--accent-cyan);
+            margin-bottom: 10px;
+        }
+        
+        /* Subtitle styling below the main title */
+        .game-header p {
+            font-size: 20px;
+            color: var(--text-color);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* The arena where player choices are made */
+        .arena {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        /* Styling for each player's section in the arena */
+        .player-box {
+            border: 2px solid var(--border-color);
+            padding: 20px;
+            text-align: center;
+        }
+
+        /* Player title (Human/Computer) */
+        .player-box h2 {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 18px;
+            color: var(--accent-pink);
+            margin-bottom: 20px;
+        }
+        
+        /* Styling for the choice buttons (GO/STOP) */
+        .choice-btn {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 24px;
+            border: 2px solid var(--border-color);
+            background-color: #333;
+            color: var(--text-color);
+            padding: 20px;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+        
+        /* Hover effect for choice buttons */
+        .choice-btn:hover:not(:disabled) {
+            background-color: #444;
+        }
+
+        /* Green styling for the 'GO' button */
+        .choice-btn.go { border-color: var(--accent-green); }
+        /* Red styling for the 'STOP' button */
+        .choice-btn.stop { border-color: var(--accent-red); }
+
+        /* Style for a selected button */
+        .choice-btn.selected {
+            color: var(--bg-color);
+            text-shadow: 0 0 10px var(--bg-color);
+        }
+        .choice-btn.go.selected { background-color: var(--accent-green); box-shadow: 0 0 15px var(--accent-green); }
+        .choice-btn.stop.selected { background-color: var(--accent-red); box-shadow: 0 0 15px var(--accent-red); }
+
+        /* Disabled state for buttons */
+        .choice-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* The bar that displays round results */
+        .results-bar {
+            width: 100%;
+            height: 60px;
+            border: 2px solid var(--border-color);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 22px;
+            text-align: center;
+            transition: all 0.5s;
+            background-color: #111;
+        }
+        
+        /* Styling for the computer's 'thinking' animation */
+        #thinking-text {
+            color: var(--accent-cyan);
+            text-shadow: 0 0 5px var(--accent-cyan);
+        }
+
+        /* Styling for the main action buttons (Play/Reset) */
+        .game-controls {
+            display: flex;
+            gap: 20px;
+        }
+
+        .action-btn {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 14px;
+            padding: 15px 30px;
+            border: 2px solid var(--border-color);
+            background-color: var(--bg-color);
+            color: var(--accent-cyan);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .action-btn:hover:not(:disabled) {
+            background-color: var(--accent-cyan);
+            color: var(--bg-color);
+        }
+        .action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            color: #555;
+        }
+
+        /* Styling for the stats display in the side panel */
+        .stats-display { text-align: center; }
+        .stats-display .score {
+            font-size: 48px;
+            font-family: 'Press Start 2P';
+            color: var(--accent-cyan);
+            margin: 5px 0;
+            text-shadow: 0 0 10px var(--accent-cyan);
+        }
+        .stats-display .label {
+            font-size: 18px;
+        }
+        
+        /* Styling for the payoff matrix table */
+        .payoff-matrix table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 18px;
+        }
+        .payoff-matrix th, .payoff-matrix td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            text-align: center;
+        }
+        .payoff-matrix .nash {
+            background-color: rgba(0, 255, 255, 0.2);
+            font-weight: bold;
+        }
+        
+        /* Styling for the rules/explanation text */
+        .rules p, .rules ul {
+            font-size: 18px;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        .rules ul {
+            padding-left: 20px;
+        }
+        .rules strong {
+            color: var(--accent-pink);
+        }
+        
+        /* Responsive design for smaller screens */
+        @media (max-width: 900px) {
+            .game-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .side-panel {
+                grid-row: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main game container -->
+    <div class="game-container">
+        
+        <!-- Left Side Panel: Scores and Payoff Matrix -->
+        <div class="side-panel">
+            <div class="stats-display">
+                <div class="panel-title">SCORE</div>
+                <div class="label">HUMAN</div>
+                <div class="score" id="humanScore">0</div>
+                <div class="label">COMPUTER</div>
+                <div class="score" id="computerScore">0</div>
+            </div>
+            <div class="payoff-matrix">
+                <div class="panel-title">PAYOFFS</div>
+                <table>
+                    <tr><th></th><th>GO</th><th>STOP</th></tr>
+                    <tr><th>GO</th><td>-10,-10</td><td class="nash">+5, +1</td></tr>
+                    <tr><th>STOP</th><td class="nash">+1, +5</td><td>0, 0</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Center Panel: Main Game Area -->
+        <div class="center-panel">
+            <div class="game-header">
+                <h1>STOPLIGHT</h1>
+                <p>NASH EQUILIBRIUM</p>
+            </div>
+            <div class="arena">
+                <div class="player-box" id="humanPanel">
+                    <h2>YOU</h2>
+                    <button class="choice-btn go" onclick="selectChoice('GO')">GO</button>
+                    <button class="choice-btn stop" onclick="selectChoice('STOP')">STOP</button>
+                </div>
+                <div class="player-box" id="computerPanel">
+                    <h2>CPU</h2>
+                    <button class="choice-btn go" id="computerGo" disabled>GO</button>
+                    <button class="choice-btn stop" id="computerStop" disabled>STOP</button>
+                </div>
+            </div>
+            <div class="results-bar" id="resultsBar">
+                <span id="resultText">MAKE YOUR MOVE</span>
+            </div>
+            <div class="game-controls">
+                <button class="action-btn" id="playBtn" onclick="playRound()" disabled>PLAY ROUND</button>
+                <button class="action-btn" onclick="resetGame()">RESET</button>
+            </div>
+        </div>
+        
+        <!-- Right Side Panel: Game Rules -->
+        <div class="side-panel rules">
+            <div class="panel-title">HOW TO PLAY</div>
+            <p><strong>GOAL:</strong> Get the highest score.</p>
+            <p><strong>RULES:</strong> You and the CPU secretly choose GO or STOP.</p>
+            <ul>
+                <li><strong>Both GO:</strong> Crash! (<strong>-10</strong> pts each)</li>
+                <li><strong>Both STOP:</strong> Deadlock. (<strong>0</strong> pts each)</li>
+                <li><strong>You GO, CPU STOPS:</strong> You win. (<strong>+5</strong> for you, <strong>+1</strong> for CPU)</li>
+                <li><strong>You STOP, CPU GO:</strong> CPU wins. (<strong>+1</strong> for you, <strong>+5</strong> for CPU)</li>
+            </ul>
+            <p>The two outcomes where one player goes and one stops are called <strong>Nash Equilibria</strong>.</p>
+        </div>
+
+    </div>
+
+    <script>
+        // --- GAME STATE VARIABLES ---
+        // This variable stores the human player's choice ('GO' or 'STOP'). It's null until a choice is made.
+        let humanChoice = null;
+        // This variable stores the computer's choice. It's determined when the round is played.
+        let computerChoice = null;
+        // This variable keeps track of the human's total score across all rounds.
+        let humanTotalScore = 0;
+        // This variable keeps track of the computer's total score across all rounds.
+        let computerTotalScore = 0;
+        // This variable tracks if the game is currently in the middle of a round to prevent clicks.
+        let isPlaying = false;
+
+        // --- DOM ELEMENT REFERENCES ---
+        // A reference to the 'Play Round' button to enable/disable it.
+        const playBtn = document.getElementById('playBtn');
+        // A reference to the bar where results and messages are displayed.
+        const resultsBar = document.getElementById('resultsBar');
+        // A reference to the text inside the results bar.
+        const resultText = document.getElementById('resultText');
+        // A reference to the human player's score display.
+        const humanScoreDisplay = document.getElementById('humanScore');
+        // A reference to the computer's score display.
+        const computerScoreDisplay = document.getElementById('computerScore');
+        // A collection of all the human's choice buttons.
+        const humanChoiceBtns = document.querySelectorAll('#humanPanel .choice-btn');
+        // A reference to the computer's 'GO' button for visual feedback.
+        const computerGoBtn = document.getElementById('computerGo');
+        // A reference to the computer's 'STOP' button for visual feedback.
+        const computerStopBtn = document.getElementById('computerStop');
+
+        // --- GAME FUNCTIONS ---
+
+        /**
+         * Handles the human player selecting a choice ('GO' or 'STOP').
+         * @param {string} choice - The choice made by the human player ('GO' or 'STOP').
+         */
+        function selectChoice(choice) {
+            // This function will only run if a round is not currently being played.
+            if (isPlaying) return;
+            // Store the player's choice in the state variable.
+            humanChoice = choice;
+            // Enable the 'Play Round' button because a choice has been made.
+            playBtn.disabled = false;
+            // Loop through all of the human's buttons.
+            humanChoiceBtns.forEach(btn => {
+                // Remove the 'selected' class from all buttons to reset the visual state.
+                btn.classList.remove('selected');
+            });
+            // Add the 'selected' class to the specific button that was clicked.
+            event.target.classList.add('selected');
+        }
+
+        /**
+         * Executes one round of the game.
+         */
+        function playRound() {
+            // Check if the human has made a choice; if not, do nothing.
+            if (!humanChoice) return;
+            // Set the isPlaying flag to true to lock controls.
+            isPlaying = true;
+            // Disable the play button to prevent multiple submissions.
+            playBtn.disabled = true;
+            
+            // The computer now makes a random choice.
+            computerChoice = Math.random() < 0.5 ? 'GO' : 'STOP';
+            
+            // Show a "thinking" message in the results bar.
+            resultText.textContent = 'CPU IS DECIDING...';
+            // Use a timeout to simulate the computer thinking, creating suspense.
+            setTimeout(() => {
+                // After the timeout, reveal the computer's choice visually.
+                revealComputerChoice();
+                // Then, calculate the payoffs and outcome of the round.
+                calculateResults();
+                // Update the score displays on the screen.
+                updateUI();
+                // After another delay, reset the board for the next round.
+                setTimeout(resetForNextRound, 2500); // 2.5 seconds to see results
+            }, 1500); // 1.5 seconds "thinking" time
+        }
+        
+        /**
+         * Visually updates the computer's panel to show its choice.
+         */
+        function revealComputerChoice() {
+            // Check which choice the computer made.
+            if (computerChoice === 'GO') {
+                // If the choice was 'GO', add the 'selected' class to its GO button.
+                computerGoBtn.classList.add('selected');
+            } else {
+                // Otherwise, add the 'selected' class to its STOP button.
+                computerStopBtn.classList.add('selected');
+            }
+        }
+
+        /**
+         * Calculates the payoffs for the round based on both choices and updates scores.
+         */
+        function calculateResults() {
+            // Initialize payoff variables for this round to zero.
+            let humanPayoff = 0;
+            let computerPayoff = 0;
+            // Initialize the outcome message string.
+            let outcomeMessage = '';
+
+            // This block checks all four possible outcomes of the game.
+            if (humanChoice === 'GO' && computerChoice === 'GO') {
+                // Outcome: Both players chose GO, resulting in a collision.
+                humanPayoff = -10;
+                computerPayoff = -10;
+                outcomeMessage = 'CRASH! BOTH GO! [-10]';
+            } else if (humanChoice === 'STOP' && computerChoice === 'STOP') {
+                // Outcome: Both players chose STOP, resulting in a deadlock.
+                humanPayoff = 0;
+                computerPayoff = 0;
+                outcomeMessage = 'DEADLOCK! BOTH STOP! [0]';
+            } else if (humanChoice === 'GO' && computerChoice === 'STOP') {
+                // Outcome: Human goes, computer stops. A win for the human.
+                humanPayoff = 5;
+                computerPayoff = 1;
+                outcomeMessage = 'YOU WIN! [+5]';
+            } else { // This covers human STOP, computer GO.
+                // Outcome: Human stops, computer goes. A win for the computer.
+                humanPayoff = 1;
+                computerPayoff = 5;
+                outcomeMessage = 'CPU WINS! [+1]';
+            }
+
+            // Add the round's payoffs to the total scores.
+            humanTotalScore += humanPayoff;
+            computerTotalScore += computerPayoff;
+            // Update the results bar with the outcome message.
+            resultText.textContent = outcomeMessage;
+        }
+
+        /**
+         * Updates all visual elements on the screen with the latest game state.
+         */
+        function updateUI() {
+            // Set the text of the human score display to the current total score.
+            humanScoreDisplay.textContent = humanTotalScore;
+            // Set the text of the computer score display to the current total score.
+            computerScoreDisplay.textContent = computerTotalScore;
+        }
+        
+        /**
+         * Resets the game state for the next round.
+         */
+        function resetForNextRound() {
+            // Clear the human's choice variable.
+            humanChoice = null;
+            // Set the isPlaying flag back to false, unlocking controls.
+            isPlaying = false;
+            // Loop through all choice buttons (human and computer).
+            document.querySelectorAll('.choice-btn').forEach(btn => {
+                // Remove the 'selected' class to reset their appearance.
+                btn.classList.remove('selected');
+            });
+            // Update the result bar text to prompt the player for the next move.
+            resultText.textContent = 'MAKE YOUR MOVE';
+        }
+
+        /**
+         * Resets the entire game back to its initial state.
+         */
+        function resetGame() {
+            // Reset the human's total score to zero.
+            humanTotalScore = 0;
+            // Reset the computer's total score to zero.
+            computerTotalScore = 0;
+            // Call the function to reset the board for a new round.
+            resetForNextRound();
+            // Call the function to update the score displays to show '0'.
+            updateUI();
+            // Disable the play button as no choice has been made yet.
+            playBtn.disabled = true;
+        }
+
+    </script>
+</body>
+</html>
