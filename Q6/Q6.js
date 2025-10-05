@@ -1,10 +1,3 @@
-// ============================================
-// UNIVERSAL EVENT TRACKER
-// Paste this entire file into browser console
-// Works on ANY webpage including all previous implementations
-// ============================================
-
-// Immediately Invoked Function Expression (IIFE) to avoid global scope pollution
 (function() {
     'use strict';
     
@@ -644,4 +637,4 @@
     console.log('%c✅ All tracking systems initialized successfully!', 'color: #4CAF50; font-weight: bold; font-size: 14px;');
     console.log('%c💡 Tip: Try clicking around and then run getTrackingSummary()', 'color: #666; font-style: italic;');
     
-})(); // End of IIFE
+})();
